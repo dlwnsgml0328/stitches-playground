@@ -2,7 +2,7 @@ import axios from 'axios';
 import { GetServerSidePropsContext } from 'next';
 
 import { ParsedUrlQuery } from 'querystring';
-import React, { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MovieComponent from '../../components/Movie';
 import { ImovieData } from '../../types/movie';
 
@@ -17,6 +17,31 @@ const Movie = ({
 }) => {
   const pageRef = useRef(2);
   const [movies, setMovies] = useState(data.results);
+  const [fetchDone, setFetchDone] = useState(false);
+
+  const doSomething = () => {
+    const dom = document.querySelector('.movieParent');
+    if (!dom) return;
+
+    const alertComp = document.createElement('div');
+    alertComp.style.width = '300px';
+    alertComp.style.display = 'flex';
+    alertComp.style.justifyContent = 'center';
+    alertComp.style.backgroundColor = 'rgb(253, 237, 237)';
+    alertComp.style.color = 'rgb(95,33,32)';
+    alertComp.innerHTML = `<h3>⚠ There is no data ⚠</h3>`;
+
+    dom.appendChild(alertComp);
+
+    setTimeout(() => {
+      dom.removeChild(alertComp);
+      setFetchDone(false);
+    }, 2000);
+  };
+
+  useEffect(() => {
+    if (fetchDone) doSomething();
+  }, [fetchDone]);
 
   if (errorCode !== false) return <h1>{errorCode}</h1>;
 
@@ -27,6 +52,7 @@ const Movie = ({
       } = await axios.get<ImovieData>(
         `https://api.themoviedb.org/3/search/movie?api_key=${process.env.NEXT_PUBLIC_REACT_APP_API_KEY}&language=en-US&query=${params?.name}&page=${pageRef.current}`
       );
+      if (results.length === 0) setFetchDone(true);
       pageRef.current++;
 
       setMovies((prev) => [...prev, ...results]);
@@ -37,13 +63,13 @@ const Movie = ({
   };
 
   return (
-    <div>
+    <div className='movieParent'>
       <h1>{params?.name}</h1>
 
       <button type='button' onClick={() => (location.href = '/')} style={{ marginRight: 5 }}>
         Home
       </button>
-      <button type='button' onClick={loadMore}>
+      <button type='button' onClick={loadMore} disabled={fetchDone}>
         loadMore
       </button>
 
@@ -63,7 +89,11 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
 
   const { params } = context;
 
-  if (errorCode) return { props: { errorCode, params } };
+  if (errorCode) {
+    console.error('error occurred:', res);
+
+    return { props: { errorCode, params } };
+  }
 
   const data: ImovieData = await res.json();
 
